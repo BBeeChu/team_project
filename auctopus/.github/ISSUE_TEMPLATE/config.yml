@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation index
+    url: https://github.com/E-zClap/auctopus/blob/main/docs/README.md
+    about: >-
+      Find setup, workflow and reference guidance in the documentation index.
+  - name: Security policy
+    url: https://github.com/E-zClap/auctopus/blob/main/SECURITY.md
+    about: >-
+      Read the policy before reporting a suspected vulnerability.

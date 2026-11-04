@@ -1,0 +1,1 @@
+Your previous reply did not contain the manuscript as a file block. Deliver it again now: the complete Markdown manuscript as a FILE block (main.md, or the path the task names), plus any other files the previous step asked for, each in its own block. Do not shorten the content.

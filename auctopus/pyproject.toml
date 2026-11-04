@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auctopus"
+version = "1.0.0"
+description = "A PI-led laboratory of AI agents for proposing research questions, testing predictions and reviewing results."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "El Mustapha Mansouri" },
+    { name = "Eikichi Kimura" },
+    { name = "Masato Koga" },
+    { name = "Keigo Arai" },
+]
+keywords = ["AI scientist", "autonomous laboratory", "multi-agent", "LLM agents", "scientific discovery",
+            "self-driving laboratory", "NV centres"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+# The dry run and the tests need nothing beyond the standard library; the SDKs serve the real model calls.
+dependencies = ["openai>=1.76", "anthropic>=1.0"]
+
+[project.urls]
+Repository = "https://github.com/E-zClap/auctopus"
+Documentation = "https://github.com/E-zClap/auctopus/tree/main/docs"
+Issues = "https://github.com/E-zClap/auctopus/issues"
+Changelog = "https://github.com/E-zClap/auctopus/blob/main/CHANGELOG.md"
+
+[project.scripts]
+auctopus = "auctopus.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["auctopus*"]
+
+[tool.setuptools.package-data]
+auctopus = ["resources/*.toml", "resources/prompts/*.md", "resources/domains/*/*.md", "resources/benchmarks/*/*/*.md"]

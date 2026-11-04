@@ -1,0 +1,6 @@
+You are the computational researcher. The experimentalist's returned files are in `lab_results/` (RUN-RESULT.json, data/trajectory.jsonl, data/notes.md, data/final_knowledge.md, deviations.md) and the run's status is in `{TASK_FILE}`. Analyse the run:
+
+1. Run `lab_packet/analysis/` on the returned trajectory (fix the script if the format differs, and say so). Extract every instrument reading and relevant message from the trajectory into a table in `LAB_ANALYSIS.md`, with the step number as provenance.
+2. Apply the precommitted decision rule exactly as locked: for each hypothesis say confirmed, refuted or inconclusive, and whether the control measurement behaved. A failed control or a missing measurement makes the affected conclusion inconclusive; do not rescue it with the experimentalist's opinions.
+3. Write `knowledge.md`: a plain-prose statement of what the laboratory now knows about the task's scientific question (the measurements, the hypothesis the evidence supports, the ones it rules out, what remains uncertain, and the explicit answer to the task if the evidence supports one).
+4. Complete `main.md`: Abstract, Results (the table of readings), Analysis and Conclusion (the verdicts, the comparison with the precommitted predictions), Limitations. Update NOTES-RESUME.md and finish with ROUND-DONE.json.

@@ -1,0 +1,1 @@
+Testability rule: a proposal is testable here only if its analysis uses the listed data files alone, runs on a laptop CPU in Python within about one hour, and commits in advance to a quantitative prediction and to the result that would refute it.

@@ -1,0 +1,448 @@
+diff --git a/.gitignore b/.gitignore
+index d357d87..8208745 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -13,3 +13,6 @@ build/
+ dist/
+ .venv/
+ venv/
++
++# oh-my-claudecode session state
++.omc/
+diff --git a/auctopus/config.py b/auctopus/config.py
+index cd1f746..e8c4fa1 100644
+--- a/auctopus/config.py
++++ b/auctopus/config.py
+@@ -118,6 +118,8 @@ class ChainCfg:
+                                         # "until-accept": up to max_review_rounds, stop if never accepted
+     max_review_rounds: int = 5
+     final_review_rounds: int = 2
++    verify: bool = True                 # BENCH: run the computational test (verify + verify-review); False skips both
++    manuscript: str = "latex"           # BENCH: "latex" (main.tex + PDF) or "markdown" (main.md / report/report.md)
+     lab: bool = True                    # test the theory on the instrument (feasibility, packet, safety, run, analysis)
+     manager_redesign: bool = True       # after a laboratory NO-GO, the manager proposes a design and the PI rules once
+     lab_reruns: int = 1                 # repeat an acquisition that failed or aborted (same pre-registered criteria)
+@@ -152,6 +154,8 @@ class RemoteCfg:
+     pull_exclude: list[str] = field(default_factory=lambda: [".git", "__pycache__", "*.ckpt", "*.pt"])
+     max_pull_mb: float = 500.0
+     extra_instructions: str = ""        # site notes added to every agent prompt (scheduler, modules, quotas)
++    inputs: list[str] = field(default_factory=list)  # BENCH: "local/path:remote/rel" pairs pushed into the working
++                                        # folder when it is created (benchmark data, reference papers, ...)
+ 
+ 
+ @dataclass
+@@ -164,6 +168,18 @@ class LabCfg(RemoteCfg):
+     exchange_dir: str = "lab-exchange"  # transport "manual": packets go to inbox/, reports come back in outbox/
+ 
+ 
++@dataclass
++class BenchCfg:
++    """BENCH: which benchmark task this project runs; read by auctopus.bench, ignored by the pipeline itself."""
++    name: str = ""                      # "mlr", "rcb" or "dw"
++    task: str = ""                      # task identifier inside the benchmark
++    data_dir: str = ""                  # the benchmark's checkout (team_project/data/<benchmark>)
++    judge_model: str = ""               # model for the benchmark's own evaluator
++    agent_name: str = "auctopus"        # label recorded in the benchmark's result files
++    mock: bool = False                  # offline smoke run: mock models and mock agents
++    extra: dict = field(default_factory=dict)
++
++
+ @dataclass
+ class MockCfg:
+     scenario: str = "revision-then-win"  # "win-first", "revision-then-win", "never-win", "lab-redo"
+@@ -181,6 +197,7 @@ class Config:
+     hpc: RemoteCfg
+     lab: LabCfg
+     mock: MockCfg
++    bench: BenchCfg = field(default_factory=BenchCfg)
+     warnings: list[str] = field(default_factory=list)
+ 
+     def path(self, rel: str) -> Path:
+@@ -231,6 +248,8 @@ class Config:
+                 out.append(f"roles.{name}.model is a placeholder")
+         if self.proposals.selection not in ("strict", "relaxed"):
+             out.append(f"proposals.selection must be strict or relaxed (got {self.proposals.selection!r})")
++        if self.chain.manuscript not in ("latex", "markdown"):
++            out.append(f"chain.manuscript must be latex or markdown (got {self.chain.manuscript!r})")
+         if need_remote:
+             for label, rc in (("hpc", self.hpc), ("lab", self.lab)):
+                 if label == "lab" and not self.chain.lab:
+@@ -301,7 +320,7 @@ def load_config(path: str | Path) -> Config:
+     for name in sorted(set(DEFAULT_ROLES) | set(roles_raw)):
+         merged = {**DEFAULT_ROLES.get(name, {}), **(roles_raw.get(name) or {})}
+         roles[name] = _build(RoleCfg, merged, f"roles.{name}", warnings)
+-    known = {"project", "keys", "roles", "proposals", "chain", "hpc", "lab", "mock"}
++    known = {"project", "keys", "roles", "proposals", "chain", "hpc", "lab", "mock", "bench"}
+     for k in sorted(set(raw) - known):
+         warnings.append(f"unknown table [{k}] (ignored)")
+     cfg = Config(
+@@ -314,6 +333,7 @@ def load_config(path: str | Path) -> Config:
+         hpc=_build(RemoteCfg, raw.get("hpc"), "hpc", warnings),
+         lab=_build(LabCfg, raw.get("lab"), "lab", warnings),
+         mock=_build(MockCfg, raw.get("mock"), "mock", warnings),
++        bench=_build(BenchCfg, raw.get("bench"), "bench", warnings),
+         warnings=warnings,
+     )
+     return cfg
+diff --git a/auctopus/llm/__init__.py b/auctopus/llm/__init__.py
+index 4e1bd49..1ad195c 100644
+--- a/auctopus/llm/__init__.py
++++ b/auctopus/llm/__init__.py
+@@ -11,9 +11,9 @@ def get_client(cfg: Config, role_name: str) -> LLMClient:
+     role = cfg.role(role_name)
+     if role.provider == "mock":
+         from .mock_client import MockClient
+-        key = ("mock", cfg.mock.scenario)
++        key = ("mock", cfg.mock.scenario, cfg.chain.manuscript)
+         if key not in _CACHE:
+-            _CACHE[key] = MockClient(cfg.mock.scenario)
++            _CACHE[key] = MockClient(cfg.mock.scenario, markdown=cfg.chain.manuscript == "markdown")
+         return _CACHE[key]  # type: ignore[return-value]
+     if role.provider == "openai":
+         api_key = cfg.keys.openai()
+diff --git a/auctopus/llm/mock_client.py b/auctopus/llm/mock_client.py
+index 1fcb244..fc63e8a 100644
+--- a/auctopus/llm/mock_client.py
++++ b/auctopus/llm/mock_client.py
+@@ -37,6 +37,16 @@ Exactly $L^2+1$ calibrations determine every sequence of at most $L$ pulses.
+ """
+ 
+ 
++MOCK_MD = """# Exact Calibration Laws for Disordered Spin Ensembles (mock)
++
++## Abstract
++A mock Markdown manuscript produced by the dry run of the pipeline.
++
++## Precommitted predictions
++Exactly L^2+1 calibrations determine every sequence of at most L pulses.
++"""
++
++
+ def _numbered(items: list[str]) -> str:
+     return "\n".join(f"{i}. {t}" for i, t in enumerate(items, 1))
+ 
+@@ -44,9 +54,10 @@ def _numbered(items: list[str]) -> str:
+ class MockClient:
+     provider = "mock"
+ 
+-    def __init__(self, scenario: str = "revision-then-win", delay_s: float = 0.0):
++    def __init__(self, scenario: str = "revision-then-win", delay_s: float = 0.0, markdown: bool = False):
+         self.scenario = scenario
+         self.delay_s = delay_s
++        self.markdown = markdown        # BENCH: deliver main.md instead of main.tex (chain.manuscript = "markdown")
+ 
+     def complete(self, messages: list[dict], *, system: str | None, role: RoleCfg, stage: str = "",
+                  on_started: StartedHook | None = None, resume_id: str | None = None,
+@@ -96,6 +107,10 @@ class MockClient:
+         if stage == "02b-positioning":
+             return "| reference | what it establishes | what remains ours |\n|---|---|---|\n| A | B | C |\n"
+         if stage in ("03-write", "03b-redeliver"):
++            if self.markdown:
++                return ("The manuscript follows.\n\n===== FILE: main.md =====\n" + MOCK_MD.strip() +
++                        "\n===== END FILE =====\n\n===== FILE: proposal.md =====\n# Proposal (mock)\n\nOne "
++                        "idea, one prediction.\n===== END FILE =====\n")
+             return ("The manuscript follows.\n\n===== FILE: main.tex =====\n" + MOCK_TEX.strip() +
+                     "\n===== END FILE =====\n\n===== FILE: references.bib =====\n@article{a, title={A}}\n"
+                     "===== END FILE =====\n")
+diff --git a/auctopus/pipeline.py b/auctopus/pipeline.py
+index 399cb68..0a479c0 100644
+--- a/auctopus/pipeline.py
++++ b/auctopus/pipeline.py
+@@ -36,9 +36,9 @@ def stage_table(cfg: Config) -> list[tuple[str, Callable[[Ctx], object]]]:
+     table: list[tuple[str, Callable[[Ctx], object]]] = [
+         ("proposals", Proposals),
+         ("theory", Theory),
+-        ("verify", Verify),
+-        ("verify-review", lambda c: ReviewLoop(c, "verify-review")),
+     ]
++    if ch.verify:                        # BENCH: the computational test can be switched off (chain.verify = false)
++        table += [("verify", Verify), ("verify-review", lambda c: ReviewLoop(c, "verify-review"))]
+     if ch.lab:
+         table.append(("lab", LabStage))
+     if ch.figures:
+diff --git a/auctopus/remote/agents.py b/auctopus/remote/agents.py
+index 5c5d243..c4508a0 100644
+--- a/auctopus/remote/agents.py
++++ b/auctopus/remote/agents.py
+@@ -33,6 +33,11 @@ MANUSCRIPT_RULE = (
+     "Manuscript: keep the paper's LaTeX source and its compiled PDF together in this folder (main.tex and main.pdf, "
+     "or the paper's own names) and rebuild the PDF whenever you change the source; the reviewers read the PDF.")
+ 
++MARKDOWN_RULE = (   # BENCH: used instead of MANUSCRIPT_RULE when chain.manuscript = "markdown"
++    "Manuscript: the paper is a Markdown document in this folder (main.md, or report/report.md where the task says "
++    "so); keep it current whenever results change, with figures saved as PNG files and referenced by relative path. "
++    "The reviewers read that Markdown file; no LaTeX or PDF is needed.")
++
+ COMPLETION_RULE = (
+     "When the task is complete (or cannot be completed), write ROUND-DONE.json in this folder as your last action: "
+     '{"status": "done" or "blocked", "summary": "<one paragraph of plain facts>", "deliverables": ["<paths>"]}. '
+@@ -45,6 +50,8 @@ DEFAULT_COMMANDS = {
+     # The experimentalist is Claude Code on the instrument computer; `-p` runs one task headless.
+     "claude": 'claude -p --dangerously-skip-permissions --output-format text {model_flag}"$(cat {prompt_file})"',
+     "mock": '"{python}" -m auctopus.remote.mock_agent --role {label} --prompt "{prompt_file}" --scenario {scenario}',
++    # BENCH: an API coding agent (OpenAI Responses API with shell and file tools), so no CLI agent is needed
++    "api": '"{python}" -m auctopus.bench.coder {model_flag}--prompt "{prompt_file}"',
+ }
+ 
+ 
+@@ -87,7 +94,8 @@ class RemoteAgent:
+         text = strip_goal(prompt).rstrip()
+         rules = [CONTINUITY_RULE, COMPLETION_RULE]
+         if self.label == "hpc":
+-            rules[0:0] = [NO_PUBLISH_RULE, MANUSCRIPT_RULE]
++            manuscript = MARKDOWN_RULE if self.cfg.chain.manuscript == "markdown" else MANUSCRIPT_RULE
++            rules[0:0] = [NO_PUBLISH_RULE, manuscript]
+         if self.rc.extra_instructions.strip():
+             rules.append("Site notes: " + self.rc.extra_instructions.strip())
+         rules += list(extra_rules or [])
+diff --git a/auctopus/stages/chain.py b/auctopus/stages/chain.py
+index ffd5ac6..00c8956 100644
+--- a/auctopus/stages/chain.py
++++ b/auctopus/stages/chain.py
+@@ -78,9 +78,45 @@ class Chain:
+     def hpc_dir(self) -> str:
+         d = self.hpc_state.get("dir")
+         if not d:
+-            raise Blocked("no HPC folder yet: the verify stage has not run")
++            d = self.ensure_hpc_dir()        # BENCH: the lab stage may be the first to need the folder (verify off)
+         return d
+ 
++    def ensure_hpc_dir(self) -> str:
++        """Create the computational researcher's working folder once: push the manuscript package, the PI's test
++        design (experiment.md) when there is one, and the benchmark inputs listed in hpc.inputs."""
++        hs = self.hpc_state
++        if hs.get("dir"):
++            return hs["dir"]
++        t = self.ctx.transport("hpc")
++        base = self.cfg.hpc.remote_root
++        name = self.choose_remote_name()
++        remote = f"{base}/{name}"
++        for v in range(2, 10):
++            if not t.exists(remote):
++                break
++            remote = f"{base}/{name}-v{v}"
++        exp = self.rd / "04-exp-reply.md"
++        if exp.exists():
++            import shutil
++            shutil.copyfile(exp, self.ctx.package / "experiment.md")
++        t.push_dir(self.ctx.package, remote)
++        for spec in self.cfg.hpc.inputs:           # BENCH: "local:remote" pairs (data folders, reference papers)
++            local, _, rel = spec.partition(":")
++            src = self.cfg.path(local.strip())
++            dst = f"{remote}/{rel.strip() or Path(local).name}"
++            if src.is_dir():
++                t.push_dir(src, dst)
++            elif src.is_file():
++                t.push_file(src, dst)
++            else:
++                LOG.warning("hpc.inputs: %s does not exist; not pushed", src)
++        hs["dir"] = remote
++        hs["experiments"] = 1 if exp.exists() else 0
++        self.ctx.state.save()
++        self.ctx.journal.say(f"hpc: package pushed to {remote}" + (f" with {len(self.cfg.hpc.inputs)} input(s)"
++                                                                   if self.cfg.hpc.inputs else ""))
++        return remote
++
+     def agent(self) -> RemoteAgent:
+         return RemoteAgent(self.cfg, "hpc", self.ctx.transport("hpc"), self.hpc_dir())
+ 
+@@ -205,9 +241,10 @@ class Chain:
+                           if re.match(r"(page_)?figure\d+", p.stem) and p.stem not in ("figure1", "page_figure1"))
+             return figs[:limit]
+         pdf = self.main_pdf(round_dir)
+-        picks: list[Path] = [pdf] if pdf else []
++        doc = self.main_doc(round_dir, self.cfg.chain.manuscript)
++        picks: list[Path] = [p for p in (pdf, doc) if p]       # the PDF first, then the source (or the Markdown)
+         if focus == "pdf-only":
+-            return picks or ([self.main_tex(round_dir)] if self.main_tex(round_dir) else [])
++            return picks[:1]
+         if focus == "lab":
+             lp = round_dir / "lab_packet"
+             for rel in ("README.md", "protocol.md", "results_schema.md", "twin/report.md", "completion_manifest.json",
+@@ -215,9 +252,6 @@ class Chain:
+                 if (lp / rel).exists():
+                     picks.append(lp / rel)
+             return picks[:limit]
+-        tex = self.main_tex(round_dir)
+-        if tex:
+-            picks.append(tex)
+         top = sorted(p for p in round_dir.iterdir() if p.is_file())
+         patterns = [r"FINAL_AUDIT\.json$", r"RESPONSE.*\.md$", r"AUDIT.*\.md$", r"\.listing\.txt$",
+                     r"ROUND-DONE\.json$", r"REPORT.*\.md$", r"results?\.md$", r"\.md$", r"\.(json|csv|txt)$"]
+@@ -241,6 +275,28 @@ class Chain:
+         pdfs = sorted(round_dir.glob("*.pdf")) or sorted(round_dir.rglob("*.pdf"), key=lambda p: len(p.parts))
+         return pdfs[0] if pdfs else None
+ 
++    @staticmethod
++    def main_doc(round_dir: Path, manuscript: str = "latex") -> Path | None:
++        """BENCH: the manuscript source: main.tex for LaTeX, else the main Markdown document."""
++        if manuscript != "markdown":
++            return Chain.main_tex(round_dir)
++        for rel in ("main.md", "manuscript.md", "paper.md", "report/report.md", "report.md"):
++            hits = sorted(round_dir.rglob(rel), key=lambda p: len(p.parts))
++            hits = [h for h in hits if ".auctopus" not in h.parts and "lab_packet" not in h.parts]
++            if hits:
++                return hits[0]
++        return None
++
++    def manuscript_file(self) -> Path | None:
++        """BENCH: the manuscript to review or assess: the latest round's PDF, else its main document, else the
++        PI's package (when no computational round exists yet)."""
++        round_dir = self.latest_round()
++        if round_dir is not None:
++            found = self.main_pdf(round_dir) or self.main_doc(round_dir, self.cfg.chain.manuscript)
++            if found:
++                return found
++        return self.main_doc(self.ctx.package, self.cfg.chain.manuscript)
++
+     @staticmethod
+     def main_tex(round_dir: Path) -> Path | None:
+         for name in ("main.tex", "manuscript.tex", "paper.tex"):
+diff --git a/auctopus/stages/deliver.py b/auctopus/stages/deliver.py
+index d3c8bc0..5918ef9 100644
+--- a/auctopus/stages/deliver.py
++++ b/auctopus/stages/deliver.py
+@@ -10,7 +10,7 @@ from ..state import Blocked
+ from ..util import atomic_write_text, iso_now, write_json
+ from .chain import Chain
+ 
+-KEEP_TOP = (".pdf", ".tex", ".bib", ".bbl", ".zip", ".sty", ".cls", ".bst")
++KEEP_TOP = (".pdf", ".tex", ".bib", ".bbl", ".zip", ".sty", ".cls", ".bst", ".md")   # BENCH: .md manuscripts
+ KEEP_DOCS = ("EXPERIMENT_REPORT.md", "COMPLETION_AUDIT.md", "completion_manifest.json", "SHA256SUMS", "README.md",
+              "ROUND-DONE.json", "REFEREE_RESPONSE.md")
+ 
+@@ -26,7 +26,7 @@ class Deliver(Chain):
+         dest = self.rd / f"delivery-v{n}"
+         dest.mkdir()
+         pdf = self.main_pdf(round_dir)
+-        tex = self.main_tex(round_dir)
++        tex = self.main_doc(round_dir, self.cfg.chain.manuscript)
+         copied: list[Path] = []
+         for p in sorted(round_dir.iterdir()):
+             if p.is_file() and (p.suffix.lower() in KEEP_TOP or p.name in KEEP_DOCS):
+@@ -35,7 +35,7 @@ class Deliver(Chain):
+             if f and not (dest / f.name).exists():
+                 copied.append(self._copy(f, dest / f.name))
+         if tex:
+-            for sub in ("figures", "fig", "figs", "sections"):
++            for sub in ("figures", "fig", "figs", "sections", "images", "report", "results"):   # BENCH: + markdown
+                 d = tex.parent / sub
+                 if d.is_dir():
+                     shutil.copytree(d, dest / sub, dirs_exist_ok=True)
+diff --git a/auctopus/stages/experiments.py b/auctopus/stages/experiments.py
+index bac8583..1193cc9 100644
+--- a/auctopus/stages/experiments.py
++++ b/auctopus/stages/experiments.py
+@@ -1,8 +1,6 @@
+ """Stages that drive the computational researcher: the first verification task and the PI's review loops."""
+ from __future__ import annotations
+ 
+-import shutil
+-
+ from ..state import Blocked
+ from .chain import Chain
+ 
+@@ -14,24 +12,9 @@ class Verify(Chain):
+         exp = self.rd / "04-exp-reply.md"
+         if not exp.exists():
+             raise Blocked("verify: no computational test design (04-exp-reply.md)")
+-        hs = self.hpc_state
+-        if not hs.get("dir"):
+-            t = self.ctx.transport("hpc")
+-            base = self.cfg.hpc.remote_root
+-            name = self.choose_remote_name()
+-            remote = f"{base}/{name}"
+-            for v in range(2, 10):
+-                if not t.exists(remote):
+-                    break
+-                remote = f"{base}/{name}-v{v}"
+-            shutil.copyfile(exp, self.ctx.package / "experiment.md")
+-            t.push_dir(self.ctx.package, remote)
+-            if not t.exists(f"{remote}/experiment.md"):
+-                raise Blocked(f"verify: experiment.md did not arrive in {remote}")
+-            hs["dir"] = remote
+-            hs["experiments"] = 1
+-            self.ctx.state.save()
+-            self.ctx.journal.say(f"verify: package pushed to {remote}")
++        remote = self.ensure_hpc_dir()           # BENCH: shared with the lab stage (see Chain.ensure_hpc_dir)
++        if not self.ctx.transport("hpc").exists(f"{remote}/experiment.md"):
++            raise Blocked(f"verify: experiment.md did not arrive in {remote}")
+         self.codex_task("verify", self.ctx.prompt("05-codex.md"))
+ 
+ 
+diff --git a/auctopus/stages/front.py b/auctopus/stages/front.py
+index 87f1fb9..afc40de 100644
+--- a/auctopus/stages/front.py
++++ b/auctopus/stages/front.py
+@@ -314,14 +314,23 @@ class Theory:
+             raise Blocked("no PI conversation: the proposals stage has not selected a proposal")
+         for name in self.cfg.chain.theory_steps:
+             self._send(conv, name)
+-        if not list(self.ctx.package.rglob("*.tex")):
+-            self.ctx.journal.say("theory: no LaTeX source received; asking the PI to deliver it as files")
++        if not self._manuscript_delivered():
++            self.ctx.journal.say("theory: no manuscript source received; asking the PI to deliver it as files")
+             self._send(conv, "03b-redeliver")
+-            if not list(self.ctx.package.rglob("*.tex")):
+-                raise Blocked("the PI's manuscript reply carried no .tex file, even after the redelivery request")
++            if not self._manuscript_delivered():
++                raise Blocked("the PI's manuscript reply carried no manuscript file, even after the redelivery "
++                              "request")
+         if not (self.ctx.run_dir / "04-exp-reply.md").exists():
+             raise Blocked("no computational test design (04-exp-reply.md)")
+ 
++    def _manuscript_delivered(self) -> bool:
++        """BENCH: a .tex file for LaTeX manuscripts, or the main Markdown document (main.md, report/report.md, ...)
++        when chain.manuscript = "markdown"."""
++        if self.cfg.chain.manuscript == "markdown":
++            from .chain import Chain
++            return Chain.main_doc(self.ctx.package, "markdown") is not None
++        return bool(list(self.ctx.package.rglob("*.tex")))
++
+     def _send(self, conv: Conversation, name: str) -> None:
+         reply = conv.reply_for(name)
+         if reply is None:
+diff --git a/auctopus/stages/lab.py b/auctopus/stages/lab.py
+index 57b7d35..f03033d 100644
+--- a/auctopus/stages/lab.py
++++ b/auctopus/stages/lab.py
+@@ -89,10 +89,9 @@ class LabStage(Chain):
+     def feasibility_and_triage(self) -> str:
+         spec = self.cfg.domain("instrument.md")
+         card = self.cfg.domain("sample-card.md")
+-        round_dir = self.latest_round()
+-        pdf = (self.main_pdf(round_dir) or self.main_tex(round_dir)) if round_dir else None
++        pdf = self.manuscript_file()             # BENCH: the latest round, or the PI's package when verify is off
+         if pdf is None:
+-            raise Blocked("lab: no manuscript in the latest round to assess")
++            raise Blocked("lab: no manuscript to assess (neither a computational round nor the PI's package)")
+         gate_out = self.rd / "lab-feasibility-reply.md"
+         note = (f"Attached: the manuscript ({pdf.name}), the setup specification ({spec.name}) and the short "
+                 f"description of the system ({card.name}).")
+diff --git a/auctopus/stages/reviewers.py b/auctopus/stages/reviewers.py
+index 542be9c..1838b88 100644
+--- a/auctopus/stages/reviewers.py
++++ b/auctopus/stages/reviewers.py
+@@ -20,10 +20,10 @@ class Reviewers(Chain):
+         round_dir = self.latest_round()
+         if round_dir is None:
+             raise Blocked("reviewers: no manuscript yet")
+-        pdf, tex = self.main_pdf(round_dir), self.main_tex(round_dir)
++        pdf, tex = self.main_pdf(round_dir), self.main_doc(round_dir, self.cfg.chain.manuscript)
+         files = [f for f in (pdf, tex) if f]
+         if not files:
+-            raise Blocked("reviewers: the latest round has neither a PDF nor a LaTeX source")
++            raise Blocked("reviewers: the latest round has neither a PDF nor a manuscript source")
+         prompt = self.ctx.prompt("10-cold-referee.md")
+ 
+         def review(role: str) -> Path | None:
+diff --git a/pyproject.toml b/pyproject.toml
+index 4397ee7..0f886fa 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -45,4 +45,4 @@ auctopus = "auctopus.cli:main"
+ include = ["auctopus*"]
+ 
+ [tool.setuptools.package-data]
+-auctopus = ["resources/*.toml", "resources/prompts/*.md", "resources/domains/*/*.md"]
++auctopus = ["resources/*.toml", "resources/prompts/*.md", "resources/domains/*/*.md", "resources/benchmarks/*/*/*.md"]

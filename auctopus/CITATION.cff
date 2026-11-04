@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use Auctopus, please cite the paper that introduces it."
+title: "Auctopus: a PI-centred laboratory of AI agents"
+type: software
+version: 1.0.0
+date-released: 2026-10-30
+license: MIT
+repository-code: "https://github.com/E-zClap/auctopus"
+authors:
+  - family-names: Mansouri
+    given-names: El Mustapha
+    affiliation: "School of Engineering, Institute of Science Tokyo"
+  - family-names: Kimura
+    given-names: Eikichi
+    affiliation: "School of Engineering, Institute of Science Tokyo"
+  - family-names: Koga
+    given-names: Masato
+    affiliation: "School of Engineering, Institute of Science Tokyo"
+  - family-names: Arai
+    given-names: Keigo
+    affiliation: "School of Engineering, Institute of Science Tokyo"
+keywords:
+  - AI scientist
+  - autonomous laboratory
+  - multi-agent systems
+  - nitrogen-vacancy centres
+preferred-citation:
+  type: article
+  title: "Collaborative AI agents for autonomous experimental research with solid-state quantum spins"
+  authors:
+    - family-names: Mansouri
+      given-names: El Mustapha
+    - family-names: Kimura
+      given-names: Eikichi
+    - family-names: Koga
+      given-names: Masato
+    - family-names: Arai
+      given-names: Keigo
+  year: 2026

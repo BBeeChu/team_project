@@ -1,0 +1,1 @@
+Testability rule: a prediction is testable here only if an agent can produce the decisive reading with the environment's actions (USE an instrument on an object, READ, TALK, ...) on objects that exist or can be found, within {{STEPS}} actions, and the proposal states in advance which reading confirms and which refutes it.

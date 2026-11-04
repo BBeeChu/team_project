@@ -1,0 +1,63 @@
+name: Bug report
+description: Report unexpected behaviour in Auctopus.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For suspected vulnerabilities, follow the [Security policy](https://github.com/E-zClap/auctopus/blob/main/SECURITY.md).
+        Keep secrets and private material out of this public report, including API keys, private host details, the authors' unpublished study prompts and private instrument descriptions.
+        Minimal synthetic prompts, data, example hostnames and redacted configuration excerpts are welcome when needed to reproduce the problem.
+  - type: input
+    id: version
+    attributes:
+      label: Auctopus version or commit
+      description: Copy `auctopus --version`; if it cannot run, give the installed or attempted version or the checkout commit.
+    validations: {required: true}
+  - type: input
+    id: environment
+    attributes:
+      label: Python and operating system
+      description: Give the Python version and operating system version.
+    validations: {required: true}
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Command and reproduction steps
+      description: Give the command and smallest steps that reproduce the problem; replace private values.
+    validations: {required: true}
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Execution mode
+      description: Select all that apply, or choose Not applicable for setup or installation problems.
+      multiple: true
+      options:
+        - Offline dry run
+        - Manual laboratory hand-off
+        - Live services
+        - Not applicable
+    validations: {required: true}
+  - type: input
+    id: stage
+    attributes:
+      label: Stage or offline scenario
+      description: Name the affected stage or dry-run scenario; write Not applicable if neither applies.
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations: {required: true}
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the error message or exit code, if available.
+    validations: {required: true}
+  - type: textarea
+    id: logs
+    attributes:
+      label: Short redacted log excerpt
+      description: Paste only the lines needed to show the problem, with private details removed.
+      render: text

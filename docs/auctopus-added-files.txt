@@ -1,0 +1,3 @@
+auctopus/bench/
+auctopus/resources/benchmarks/
+tests/test_bench.py

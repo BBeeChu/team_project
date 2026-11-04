@@ -1,0 +1,1 @@
+[insert: your prompt asking the principal investigator to deliver the manuscript's LaTeX source again. Auctopus sends it only when the manuscript reply carried no .tex file, and adds the instructions for delivering the files.]

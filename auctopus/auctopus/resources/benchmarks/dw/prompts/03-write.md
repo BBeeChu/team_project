@@ -1,0 +1,1 @@
+Write the laboratory notebook that will become the final report, as a file block at the path `main.md`: Title, Abstract (to be written), Background (the task), Hypotheses, a section "Precommitted predictions" copying the locked predictions and decision rule verbatim, Protocol summary, Results (empty, TODO), Analysis and Conclusion (empty), Limitations. Markdown only.

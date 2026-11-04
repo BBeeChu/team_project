@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a change to the research workflow or its implementation.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the workflow in terms you can share publicly.
+        Exclude secrets and private material, including API keys, private host details, the authors' unpublished study prompts and private instrument descriptions.
+        Minimal synthetic prompts, data, example hostnames and redacted configuration excerpts are welcome when relevant.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Task or problem
+      description: Describe what you are trying to do and what prevents you from completing it.
+    validations:
+      required: true
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Proposed behaviour
+      description: Describe the behaviour you propose and how you would recognise that it works.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Research workflow context
+      description: Name the workflow stage or role involved and explain who needs the change.
+    validations:
+      required: true

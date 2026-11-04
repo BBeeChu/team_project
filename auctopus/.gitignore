@@ -1,0 +1,18 @@
+# API keys and run data never go into version control
+config.toml
+.env
+runs/
+lab-exchange/
+auctopus-dry-run/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# oh-my-claudecode session state
+.omc/

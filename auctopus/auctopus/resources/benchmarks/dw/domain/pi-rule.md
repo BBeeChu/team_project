@@ -1,0 +1,1 @@
+Veto rule: discard any proposal whose decisive measurement cannot be made with the environment's actions within {{STEPS}} actions, that relies on facts the environment has not revealed, or that enters an answer without a measurement-based decision rule.

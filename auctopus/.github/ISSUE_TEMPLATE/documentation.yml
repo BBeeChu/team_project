@@ -1,0 +1,30 @@
+name: Documentation correction
+description: Report unclear, incorrect or missing documentation.
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Exclude secrets and private material, including API keys, private host details, the authors' unpublished study prompts and private instrument descriptions.
+        Minimal synthetic prompts, data, example hostnames and redacted configuration excerpts are welcome when relevant.
+  - type: input
+    id: location
+    attributes:
+      label: Page and section
+      description: Give the repository path or page link and the relevant heading.
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: Attempted task
+      description: If relevant, describe what you were trying to do when the documentation left you uncertain.
+    validations:
+      required: false
+  - type: textarea
+    id: correction
+    attributes:
+      label: Correction or missing explanation
+      description: Identify the unclear or incorrect text and describe the explanation you need.
+    validations:
+      required: true

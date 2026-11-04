@@ -1,0 +1,1 @@
+Veto rule: discard any proposal whose experiment cannot run on a CPU or one GPU within about one hour, whose prediction is not stated before the data is seen, or whose idea restates known work without a new falsifiable claim.

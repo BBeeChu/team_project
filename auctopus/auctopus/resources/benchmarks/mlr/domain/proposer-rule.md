@@ -1,0 +1,1 @@
+Testability rule: a proposal is testable here only if its experiment runs on a CPU or a single GPU within about one hour using public datasets, synthetic data or small open models, and it commits in advance to a quantitative prediction and to the result that would refute it.

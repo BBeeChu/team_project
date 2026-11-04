@@ -1,0 +1,1 @@
+[insert: your prompt for the manager after a laboratory NO-GO. Attached: the manuscript, the instrument specification, the principal investigator's ruling and the feasibility report. Ask for a design that the instrument can run and that separates the paper's prediction from its rivals.]

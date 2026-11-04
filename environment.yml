@@ -1,0 +1,31 @@
+name: team_project
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pip:
+      # harness (Auctopus) model clients
+      - openai>=1.76
+      - anthropic>=1.0
+      # MLR-Bench evaluators (mlrbench.evals)
+      - backoff
+      - tqdm
+      - tiktoken
+      - pymupdf
+      - pymupdf4llm
+      - pypdf
+      # ResearchClawBench evaluator (evaluation/score.py)
+      - structai
+      - python-dotenv
+      - pyyaml
+      # DiscoveryWorld environment
+      - pygame
+      - pathfinding
+      - termcolor
+      - psutil

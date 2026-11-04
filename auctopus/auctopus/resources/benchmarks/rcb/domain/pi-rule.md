@@ -1,0 +1,1 @@
+Veto rule: discard any proposal that needs data not provided, web access or heavy computation, that states no prediction before the data is analysed, or that only describes the data without a mechanism to test.

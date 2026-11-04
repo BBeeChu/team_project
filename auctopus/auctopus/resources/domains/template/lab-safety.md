@@ -1,0 +1,1 @@
+[insert: the safety rules of your laboratory, for the experimentalist and the safety agent: the hard limits of the instrument, what to do when a protocol step would exceed them, and how to leave the instrument safe on every exit path.]

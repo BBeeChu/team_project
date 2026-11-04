@@ -1,0 +1,11 @@
+# benchmark checkouts and data (several GB; re-download with the commands in README.md)
+data/
+# runs, projects, evaluations
+runs/
+runs-mock/
+# conda env creation log
+.conda-create.log
+.omc/
+__pycache__/
+*.pyc
+.DS_Store

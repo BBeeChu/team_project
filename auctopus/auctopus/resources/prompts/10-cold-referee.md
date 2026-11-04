@@ -1,0 +1,1 @@
+[insert: your prompt for the independent reviewers. Each reviewer receives only the manuscript (PDF and LaTeX source), in a new conversation, without code, data or earlier exchanges. Ask for a referee report with a recommendation and a confidence score.]

@@ -1,0 +1,1 @@
+[insert: your prompt for the proposers of a revision batch. Attached: brief.md (the brief of the fresh proposers), seed.md (the proposal {SEED}, which the principal investigator did not select but judged the most promising) and review.md (the principal investigator's verdict on its batch). Ask for one revised proposal.]
